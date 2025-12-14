@@ -1,7 +1,7 @@
-from agent import Agent
+from agent import TravelAgent
 
 
 
-travel_agent = Agent()
+travel_agent = TravelAgent({'home': '7 Craigievar Square, Edinburgh, EH12 8YP'})
 
-print(travel_agent.run("Best journey from London to Norwich on the 14th December 2025"))
+print(travel_agent.run("I want to travel to Norwich Cathedral on 14/12/25, leaving at 7am"))
