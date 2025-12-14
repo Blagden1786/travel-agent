@@ -1,7 +1,7 @@
 
 # Dummy maps
 def google_maps_search(start, finish, start_time):
-    return "30 minutes by taking the X18 bus leaving in 5 minutes"
+    return "25 minutes by taking the X18 bus leaving every 30 mins on the hour and at half past the hour"
 
 google_maps_search_info = {
                 "type": "function",

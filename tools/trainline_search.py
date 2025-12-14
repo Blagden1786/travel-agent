@@ -1,6 +1,8 @@
+import trainline as t
+
 # Dummy train first
 def trainline_search(start: str, end: str, date: str):
-    return f"The train from {start} to {end} leaves at 13:00 on {date} and arrives at 14:00 on {date}"
+    return t.search(start, end, date, date)
 
 trainline_search_info = {
                 "type": "function",
@@ -19,7 +21,7 @@ trainline_search_info = {
                         },
                         "date": {
                             "type": "string",
-                            "description": "Date of travel in ISO format: yyyy-mm-dd",
+                            "description": "Date of travel in the format: dd/mm/yyyy hh:mm (eg 15/10/2018 08:00)",
                         }
 
                     },
@@ -28,3 +30,5 @@ trainline_search_info = {
                 },
                 "strict": True,
             }
+
+print(trainline_search("Edinburgh Waverley", "London", "15/12/2025 08:00").csv())

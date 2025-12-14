@@ -11,19 +11,21 @@ class TravelAgent():
         self.client = OpenAI(api_key=API_KEY)
         self.tools = [google_maps_search_info, trainline_search_info]
         self.user_data = user_data
+        self.context = []
 
-    def get_response(self, prompt:str, input_list):
+    def get_response(self, prompt:str):
         # Inputs
-        input_list += [
-            {"role": "user", "content": prompt}
-        ]
+        if self.context == []:
+            self.context += [
+                {"role": "user", "content": prompt}
+            ]
         PROMPT = self.prompt_builder()
 
         # Get response
-        response = self.client.responses.create(model="gpt-5-nano",  instructions=PROMPT, input=input_list, tools=self.tools)
+        response = self.client.responses.create(model="gpt-5-nano",  instructions=PROMPT, input=self.context, tools=self.tools)
 
         # Add tool calls to the inputs
-        input_list +=  response.output
+        self.context +=  response.output
 
         # response.output is a list of either reasoning objects or function calling objects.
         # Loop through each one to execute all functions
@@ -45,34 +47,27 @@ class TravelAgent():
 
                 print(f"Tool response: {tool_response}")
                 # Add to list of inputs for next call
-                input_list.append({
+                self.context.append({
                     "type": "function_call_output",
                     "call_id": item.call_id,
                     "output": json.dumps({
                         item.name: tool_response
                     })
                 })
-        response = self.client.responses.create(
-            model="gpt-5",
-            instructions="Respond only with a full journey plan or a question for the user.",
-            tools=self.tools,
-            input=input_list,
-        )
 
-        return response.output_text, input_list
+        return response.output_text
 
     def run_agent(self):
         user_input = ""
-        input_list = []
         while True:
-            response, input_list = self.get_response(user_input, input_list)
+            response= self.get_response(user_input)
             print(response)
             user_input = input("User: ")
 
 
     def prompt_builder(self):
         # TODO: Change the prompt to be specific of their original address when we have got to it.
-        START_PROMPT = f"""You are a helpful travel planner who's goal is to help the user plan their journey. On the first message, introduce yourself.
+        START_PROMPT = f"""You are a helpful travel planner who's goal is to help the user plan their journey. On the first message, introduce yourself and ask only what the travel they need planning is. You should only probe for extra information when you need it.
 ## User starts at home ##
 If the user does not give you a start point, assume they want to start from home.
 The user's home address is {self.user_data['home']}
