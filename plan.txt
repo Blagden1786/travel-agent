@@ -1,0 +1,9 @@
+## Features
+- Search trainline for best trains
+- Search Google flights for best flights
+- Plans journey to/from airport using google maps
+- Puts together to provide best journey and gives link to book flight/train
+
+## Tools
+- Trainline search
+- Google maps search
