@@ -1,22 +1,26 @@
 from openai import OpenAI
-from secrets import API_KEY
-from tools.google_maps_search import google_maps_search
-from tools.trainline_search import *
 import json
+
+from secrets import API_KEY
+from tools.maps import *
+from tools.trainline_search import *
+
 
 class TravelAgent():
     def __init__(self, user_data: dict):
         self.client = OpenAI(api_key=API_KEY)
-        self.tools = self.get_tools()
+        self.tools = [google_maps_search_info, trainline_search_info]
         self.user_data = user_data
 
-    def run(self, prompt:str):
+    def get_response(self, prompt:str, input_list):
         # Inputs
-        input_list = [
+        input_list += [
             {"role": "user", "content": prompt}
         ]
+        PROMPT = self.prompt_builder()
 
-        response = self.client.responses.create(model="gpt-5-nano",  instructions=self.prompt_builder(), input=input_list, tools=self.tools)
+        # Get response
+        response = self.client.responses.create(model="gpt-5-nano",  instructions=PROMPT, input=input_list, tools=self.tools)
 
         # Add tool calls to the inputs
         input_list +=  response.output
@@ -25,17 +29,21 @@ class TravelAgent():
         # Loop through each one to execute all functions
         for item in response.output:
             if item.type == 'function_call':
-                # Match function call to the function needed
+                # Need one more step
+                finished = False
+                print(item)
+                # Run the function call if the function exists
+                tool_response = None
+
                 match item.name:
                     case 'trainline_search':
-                        args = json.loads(item.arguments)
-                        tool_response = trainline_search(args['start'], args['end'], args['date'])
+                        tool_response = trainline_search(**json.loads(item.arguments))
                     case 'google_maps_search':
-                        args = json.loads(item.arguments)
-                        tool_response = google_maps_search(args['start'], args['finish'], args['date'])
+                        tool_response = google_maps_search(**json.loads(item.arguments))
                     case _:
-                        tool_response = "Tool Not Found"
+                        tool_response = ""
 
+                print(f"Tool response: {tool_response}")
                 # Add to list of inputs for next call
                 input_list.append({
                     "type": "function_call_output",
@@ -44,88 +52,46 @@ class TravelAgent():
                         item.name: tool_response
                     })
                 })
-
         response = self.client.responses.create(
-            model="gpt-5-nano",
-            instructions="Respond only with the full journey itinery",
+            model="gpt-5",
+            instructions="Respond only with a full journey plan or a question for the user.",
             tools=self.tools,
             input=input_list,
         )
 
-        return response.output_text
+        return response.output_text, input_list
 
-    def get_tools(self):
-        tools = [
-            {
-                "type": "function",
-                "name": "trainline_search",
-                "description": "Get the departure and journey time between start and destinaton",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "start": {
-                            "type": "string",
-                            "description": "Start City. e.g London",
-                        },
-                        "end": {
-                            "type": "string",
-                            "description": "End City. e.g Edinburgh",
-                        },
-                        "date": {
-                            "type": "string",
-                            "description": "Date of travel in ISO format: yyyy:mm:dd",
-                        }
+    def run_agent(self):
+        user_input = ""
+        input_list = []
+        while True:
+            response, input_list = self.get_response(user_input, input_list)
+            print(response)
+            user_input = input("User: ")
 
-                    },
-                    "required": ["start", "end", "date"],
-                    "additionalProperties": False,
-                },
-                "strict": True,
-            },
-            {
-                "type": "function",
-                "name": "google_maps_search",
-                "description": "Plan a journey between places",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "start": {
-                            "type": "string",
-                            "description": "Start City. e.g London",
-                        },
-                        "finish": {
-                            "type": "string",
-                            "description": "End City. e.g Edinburgh",
-                        },
-                        "date": {
-                            "type": "string",
-                            "description": "Date of travel in ISO format: yyyy:mm:dd",
-                        }
-
-                    },
-                    "required": ["start", "finish", "date"],
-                    "additionalProperties": False,
-                },
-                "strict": True,
-            },
-        ]
-
-        return tools
 
     def prompt_builder(self):
         # TODO: Change the prompt to be specific of their original address when we have got to it.
-        START_PROMPT = f"""You are a helpful travel planner who's goal is to help the user plan their journey.
+        START_PROMPT = f"""You are a helpful travel planner who's goal is to help the user plan their journey. On the first message, introduce yourself.
 ## User starts at home ##
 If the user does not give you a start point, assume they want to start from home.
 The user's home address is {self.user_data['home']}
 
-## Plan ##
-1. Break the journey into 3 (or more parts) and use the correct tool for each one:
-    1. Start point to travel hub (e.g main station or airport): Use google maps
-    2. Travel between travel hubs: Use trainline
-    3. Travel hub to destination: Use google maps
+## Process ##
+1. Ask the user questions until you have all the info you need
+2. Break the journey into 3 parts:
+    1. Start point to travel hub (e.g main station or airport)
+    2. Travel between travel hubs
+    3. Travel hub to destination
 
-2. Use the outputs of these tools to compile the best journey option
+3. Find the best travel options between travel hubs
+
+4. Fit travel to and from the travel hubs around this. Make sure these rules apply:
+    - I want to arrive at a train station >20 mins before travel
+
+5. Use the outputs of these tools to compile the best journey option.
+
+Once you have gathered all required information, provide an itinery for the journey. Then ask the user if they need help with anything else.
         """
 
         return START_PROMPT

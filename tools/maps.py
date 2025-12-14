@@ -1,11 +1,12 @@
-# Dummy train first
-def trainline_search(start: str, end: str, date: str):
-    return f"The train from {start} to {end} leaves at 13:00 on {date} and arrives at 14:00 on {date}"
 
-trainline_search_info = {
+# Dummy maps
+def google_maps_search(start, finish, start_time):
+    return "30 minutes by taking the X18 bus leaving in 5 minutes"
+
+google_maps_search_info = {
                 "type": "function",
-                "name": "trainline_search",
-                "description": "Get the departure and journey time between start and destinaton",
+                "name": "google_maps_search",
+                "description": "Plan a journey between places",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -13,17 +14,17 @@ trainline_search_info = {
                             "type": "string",
                             "description": "Start City. e.g London",
                         },
-                        "end": {
+                        "finish": {
                             "type": "string",
                             "description": "End City. e.g Edinburgh",
                         },
-                        "date": {
+                        "start_time": {
                             "type": "string",
-                            "description": "Date of travel in ISO format: yyyy-mm-dd",
+                            "description": "Time for journey to start",
                         }
 
                     },
-                    "required": ["start", "end", "date"],
+                    "required": ["start", "finish", "start_time"],
                     "additionalProperties": False,
                 },
                 "strict": True,
